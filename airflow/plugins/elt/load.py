@@ -1,6 +1,6 @@
-from sqlalchemy.dialects.postgresql import insert
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.dialects.postgresql import insert
 from elt.config import DB_CONN
 from elt.models import bronze_weather_current, bronze_weather_hourly
 
@@ -11,16 +11,15 @@ def get_engine():
 
 def load_current(df: pd.DataFrame):
     if df is None or df.empty:
-        print("DataFrame current vacío, no se carga")
+        print("DataFrame current vacío, no se cargan")
         return
 
     engine = get_engine()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(
             insert(bronze_weather_current),
             df.to_dict(orient="records")
         )
-        conn.commit()
     print(f"Cargadas {len(df)} filas a bronze_weather_current")
 
 
@@ -44,7 +43,6 @@ def load_hourly(df: pd.DataFrame):
         }
     )
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(stmt, df.to_dict(orient="records"))
-        conn.commit()
     print(f"Cargadas {len(df)} filas a bronze_weather_hourly")
