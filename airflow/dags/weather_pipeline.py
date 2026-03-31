@@ -2,9 +2,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timezone
 
-from plugins.elt.extract import OpenMeteoCurrentExtractor, OpenMeteoHourlyExtractor
-from plugins.elt.transform import transform_current, transform_hourly
-from plugins.elt.load import load_current, load_hourly
+from elt.extract import OpenMeteoCurrentExtractor, OpenMeteoHourlyExtractor
+from elt.transform import transform_current, transform_hourly
+from elt.load import load_current, load_hourly
 
 
 def run_current_pipeline():
