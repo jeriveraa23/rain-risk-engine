@@ -1,14 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, AlertTriangle, Users, Send, Droplets } from 'lucide-react';
+import { Droplets, AlertTriangle } from 'lucide-react';
 import './Sidebar.css';
 
 export const Sidebar = () => {
   const menuItems = [
-    { path: '/dashboard', name: 'El Tablero', icon: LayoutDashboard },
-    { path: '/alerts', name: 'Reporte de Alertas', icon: AlertTriangle },
-    { path: '/users', name: 'Usuarios Registrados', icon: Users },
-    { path: '/config', name: 'Envío de Alertas', icon: Send },
+    { path: '/precipitation', name: 'Precipitación', icon: Droplets },
+    { path: '/risk', name: 'Riesgo', icon: AlertTriangle },
   ];
 
   return (
@@ -23,8 +21,8 @@ export const Sidebar = () => {
         <ul className="nav-list">
           {menuItems.map((item) => (
             <li key={item.path} className="nav-item">
-              <NavLink 
-                to={item.path} 
+              <NavLink
+                to={item.path}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <item.icon size={20} className="nav-icon" />
