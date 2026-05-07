@@ -59,7 +59,7 @@ return (
             : '—'}
         </div>
         <p className="metric-trend text-muted">
-            <TrendingUp size={16} /> Score: {current ? (current.riesgo_score * 100).toFixed(0) : '—'}%
+            <TrendingUp size={16} /> Score: {current ? parseFloat(current.riesgo_score).toFixed(0) : '—'}%
         </p>
         </Card>
 
