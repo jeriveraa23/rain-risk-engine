@@ -45,6 +45,20 @@ services:
     ports:
       - "3000:3000"
 
+  airflow-init:
+    image: apache/airflow:2.9.0
+    container_name: alerto_airflow_init
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        airflow db upgrade &&
+        airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@mail.com || true"
+
   airflow-webserver:
     build:
       context: ./airflow
@@ -54,6 +68,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
     env_file:
@@ -75,6 +91,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     environment:
