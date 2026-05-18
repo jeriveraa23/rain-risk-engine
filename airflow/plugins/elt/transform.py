@@ -1,5 +1,8 @@
 import pandas as pd
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+BOGOTA = ZoneInfo("America/Bogota")
 
 
 def transform_current(raw_data: dict) -> pd.DataFrame:
@@ -12,7 +15,7 @@ def transform_current(raw_data: dict) -> pd.DataFrame:
 
     df = pd.DataFrame([{
         "fetched_at":         datetime.now(timezone.utc),
-        "time":               pd.to_datetime(current.get("time")),
+        "time":               pd.to_datetime(current.get("time")).tz_localize("America/Bogota"),
         "precipitation":      current.get("precipitation"),
         "rain":               current.get("rain"),
         "showers":            current.get("showers"),
@@ -34,7 +37,7 @@ def transform_hourly(raw_data: dict) -> pd.DataFrame:
     hourly = raw_data["hourly"]
 
     df = pd.DataFrame({
-        "time":              pd.to_datetime(hourly.get("time")),
+        "time":              pd.to_datetime(hourly.get("time")).dt.tz_localize("America/Bogota"),
         "precipitation":     hourly.get("precipitation"),
         "rain":              hourly.get("rain"),
         "showers":           hourly.get("showers"),
@@ -44,7 +47,7 @@ def transform_hourly(raw_data: dict) -> pd.DataFrame:
     })
 
     df["fetched_at"] = datetime.now(timezone.utc)
-    df = df.dropna(subset=["precipitation"])
+    df["precipitation"] = df["precipitation"].fillna(0)
 
     print(f"Transform hourly: {len(df)} filas generadas")
     return df
