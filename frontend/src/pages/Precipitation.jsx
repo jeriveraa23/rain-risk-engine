@@ -13,8 +13,8 @@ useEffect(() => {
     const fetchData = async () => {
     try {
         const [curRes, histRes] = await Promise.all([
-        fetch('http://localhost:8000/api/precipitation/current'),
-        fetch('http://localhost:8000/api/precipitation/history'),
+        fetch('/api/precipitation/current'),
+        fetch('/api/precipitation/history'),
         ]);
         if (curRes.ok) setCurrent(await curRes.json());
         if (histRes.ok) {

@@ -8,7 +8,7 @@ export const Layout = () => {
 
   // Redirect root to dashboard
   if (location.pathname === '/') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/precipitation" replace />;
   }
 
   return (

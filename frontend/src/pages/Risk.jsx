@@ -12,8 +12,8 @@ useEffect(() => {
     const fetchData = async () => {
     try {
         const [curRes, histRes] = await Promise.all([
-        fetch('http://localhost:8000/api/risk/current'),
-        fetch('http://localhost:8000/api/risk/history'),
+        fetch('/api/risk/current'),
+        fetch('/api/risk/history'),
         ]);
         if (curRes.ok) setCurrent(await curRes.json());
         if (histRes.ok) setHistory(await histRes.json());
@@ -32,9 +32,10 @@ useEffect(() => {
 const getBadgeClass = (level) => {
     if (!level) return '';
     switch (level.toLowerCase()) {
-    case 'alto': return 'badge-danger';
-    case 'medio': return 'badge-warning';
-    default: return 'badge-success';
+    case 'rojo':     return 'badge-danger';
+    case 'naranja':  return 'badge-warning';
+    case 'amarillo': return 'badge-warning';
+    default:
     }
 };
 
@@ -95,7 +96,7 @@ return (
                 <tr key={i}>
                     <td>{new Date(item.evaluated_at).toLocaleString('es-ES')}</td>
                     <td><span className={`badge ${getBadgeClass(item.nivel_riesgo)}`}>{item.nivel_riesgo}</span></td>
-                    <td>{(item.riesgo_score * 100).toFixed(0)}%</td>
+                    <td>{parseFloat(item.riesgo_score).toFixed(0)}%</td>
                 </tr>
                 ))
             )}
