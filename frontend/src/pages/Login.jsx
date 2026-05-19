@@ -11,7 +11,7 @@ export const Login = () => {
   const handleLogin = (e) => {
     e.preventDefault();
     // Use mock login for now
-    navigate('/dashboard');
+    navigate('/precipitation');
   };
 
   return (
