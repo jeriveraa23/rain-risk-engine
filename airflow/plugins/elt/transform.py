@@ -15,7 +15,7 @@ def transform_current(raw_data: dict) -> pd.DataFrame:
 
     df = pd.DataFrame([{
         "fetched_at":         datetime.now(timezone.utc),
-        "time":               pd.to_datetime(current.get("time")).tz_localize("America/Bogota"),
+        "time":               pd.Timestamp(current.get("time")).tz_localize(BOGOTA),
         "precipitation":      current.get("precipitation"),
         "rain":               current.get("rain"),
         "showers":            current.get("showers"),
@@ -37,10 +37,10 @@ def transform_hourly(raw_data: dict) -> pd.DataFrame:
     hourly = raw_data["hourly"]
 
     df = pd.DataFrame({
-        "time":              pd.to_datetime(hourly.get("time")).dt.tz_localize("America/Bogota"),
+        "time":              pd.to_datetime(hourly.get("time")).tz_localize(BOGOTA),
         "precipitation":     hourly.get("precipitation"),
-        "rain":              hourly.get("rain"),
-        "showers":           hourly.get("showers"),
+        "rain":               hourly.get("rain"),
+        "showers":            hourly.get("showers"),
         "relative_humidity": hourly.get("relative_humidity_2m"),
         "cloudcover":        hourly.get("cloudcover"),
         "windspeed_10m":     hourly.get("windspeed_10m"),
