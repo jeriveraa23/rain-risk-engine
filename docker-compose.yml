@@ -42,6 +42,8 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
 
   airflow-init:
     image: apache/airflow:2.9.0
