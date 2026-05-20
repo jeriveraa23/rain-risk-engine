@@ -7,7 +7,7 @@ export default defineConfig({
     host: true,
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': process.env.BACKEND_URL || 'http://localhost:8000',
     },
   },
 })
