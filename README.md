@@ -41,7 +41,8 @@ Open-Meteo API
   [Frontend React]  → Dashboard
 ```
 
-![alt text](<Diagrama Arquitectura.gif>)
+<img width="1876" height="790" alt="Diagrama Arquitectura" src="https://github.com/user-attachments/assets/50d20a57-e100-43e5-82d5-dd3ead58899d" />
+
 
 ---
 
@@ -73,7 +74,7 @@ El corazón del sistema es un DAG de **Apache Airflow** (`weather_pipeline`) que
 | `gold_daily_summary` | Gold | Resumen diario de precipitación |
 | `alerts` | Resultado | Historial de evaluaciones del motor difuso |
 
-![alt text](<Pipelina airflow.png>)
+<img width="352" height="402" alt="Pipelina airflow" src="https://github.com/user-attachments/assets/1fb0570f-b705-4b98-8465-bc2bf7acca57" />
 
 ---
 
@@ -143,7 +144,7 @@ API REST construida con **FastAPI** y **SQLAlchemy**, siguiendo arquitectura en 
 }
 ```
 
-![alt text](<docs back.png>)
+<img width="1634" height="441" alt="docs back" src="https://github.com/user-attachments/assets/a1a8a891-3a40-40ce-9b4f-a74b00079611" />
 
 ---
 
@@ -156,9 +157,9 @@ Dashboard web construido con **React** que muestra:
 - Precipitación acumulada por ventanas de tiempo
 - Gráfico histórico del riesgo score
 
-![alt text](<Front precipitación.png>)
+<img width="1616" height="898" alt="Front precipitación" src="https://github.com/user-attachments/assets/9a569423-cb18-4a82-b820-c17e10c0396f" />
 
-![alt text](<Front riesgo.png>)
+<img width="1600" height="799" alt="Front riesgo" src="https://github.com/user-attachments/assets/1d3d52b8-de24-49cd-95e0-ebe7585afccd" />
 
 ---
 
