@@ -1,171 +1,220 @@
-# Alerto - Sistema de Alertas de Inundacion
+# Rain Risk Engine
 
-Sistema de monitoreo climatico y evaluacion de riesgo de inundacion.
-Construido sobre una arquitectura de datos por capas (Bronze - Silver - Gold)
-con un motor de logica difusa y una API REST para consumo del frontend y servicio de mensajería.
+Sistema de monitoreo y alerta temprana de riesgo por precipitaciones, construido sobre un pipeline ELT automatizado y un motor de lógica difusa para la evaluación del riesgo en tiempo real.
 
 ---
 
-## Arquitectura general construida hasta el momento
+## El Problema
+
+Las lluvias intensas generan situaciones de riesgo que muchas veces toman por sorpresa a las personas. Los datos meteorológicos existen y son públicos, pero no hay una forma sencilla de interpretarlos y traducirlos en un nivel de riesgo claro y accionable.
+
+¿Cómo saber si la lluvia que está cayendo ahora representa un riesgo real? ¿Cuánta precipitación acumulada en las últimas horas es preocupante? ¿Qué papel juega la humedad del suelo en todo esto?
+
+---
+
+## La Solución
+
+Rain Risk Engine extrae datos de precipitación y humedad cada 15 minutos desde la API pública de Open-Meteo, los transforma a través de un pipeline ELT por capas (Bronze → Silver → Gold), y los evalúa con un motor de lógica difusa que produce un nivel de riesgo: **Verde, Amarillo, Naranja o Rojo**.
+
+El resultado se expone mediante una API REST y se visualiza en un dashboard web en tiempo real.
+
+> 📸 **Imagen sugerida:** captura del dashboard mostrando el nivel de riesgo en NARANJA o ROJO para evidenciar el color y los datos en pantalla.
+
+---
+
+## Arquitectura
 
 ```
 Open-Meteo API
-      |
-      v
-  [Airflow ELT]  ->  Bronze (PostgreSQL)
-      |
-      v
-   [dbt]  ->  Silver -> Gold (PostgreSQL)
-      |
-      v
-[Motor de Riesgo]  ->  Tabla alerts (PostgreSQL)
-      |
-      v
-  [FastAPI]  ->  4 endpoints REST
-
+      ↓
+  [Airflow — cada 15 min]
+  Extract → Bronze (PostgreSQL)
+      ↓
+  dbt Silver → limpieza y tipado
+      ↓
+  dbt Gold  → ventanas de tiempo (1h, 3h, 6h, 24h, 72h)
+      ↓
+  Motor Difuso → nivel de riesgo
+      ↓
+  [Backend FastAPI] → REST API
+      ↓
+  [Frontend React]  → Dashboard
 ```
 
----
-
-## Componentes
-
-### 1. Pipeline ELT (Airflow)
-
-El DAG `weather_pipeline` corre cada 15 minutos y ejecuta estas tareas en orden:
-
-| Tarea | Descripcion |
-|-------|-------------|
-| `extract_transform_load_current` | Extrae clima actual de Open-Meteo y carga en `bronze_weather_current` |
-| `extract_transform_load_hourly` | Extrae datos horarios de Open-Meteo y carga en `bronze_weather_hourly` |
-| `dbt_deps` | Instala paquetes dbt |
-| `dbt_run_silver` | Transforma bronze -> silver (limpieza, tipado, deduplicacion) |
-| `dbt_test_silver` | Valida calidad de datos en silver |
-| `dbt_run_gold` | Agrega silver -> gold (ventanas de tiempo, features para el motor) |
-| `dbt_test_gold` | Valida calidad de datos en gold |
-| `run_risk_engine` | Calcula riesgo y guarda resultado en `alerts` |
-
-**Capas de datos en PostgreSQL:**
-
-| Tabla | Descripcion |
-|-------|-------------|
-| `public.bronze_weather_current` | Snapshots del clima actual |
-| `public.bronze_weather_hourly` | Datos horarios crudos |
-| `public_silver.silver_weather_current` | Datos actuales limpios y tipados |
-| `public_silver.silver_weather_hourly` | Datos horarios limpios y deduplicados |
-| `public_gold.gold_risk_features_latest` | Features agregadas para el motor (1 fila) |
-| `public_gold.gold_precipitation_history` | Historico horario de precipitacion |
-| `public_gold.gold_daily_summary` | Resumen diario de precipitacion |
-| `public.alerts` | Historial de evaluaciones de riesgo |
+![alt text](<Diagrama Arquitectura.gif>)
 
 ---
 
-### 2. Motor de Riesgo (Logica Difusa)
+## Pipeline ELT — Airflow + PostgreSQL + dbt
 
-Ubicado en `airflow/plugins/risk_engine/`. Usa `scikit-fuzzy` en dos etapas:
+El corazón del sistema es un DAG de **Apache Airflow** (`weather_pipeline`) que se ejecuta automáticamente cada 15 minutos y orquesta las siguientes tareas:
 
-**Etapa 1 - Nivel de lluvia (0 a 1):**
-- Entradas: precipitacion ultima hora, precipitacion ultimas 3h, intensidad actual
-- Salida: `nivel_lluvia` (bajo / medio / alto)
+| Tarea | Descripción |
+|---|---|
+| `extract_transform_load_current` | Extrae clima actual de Open-Meteo → `bronze_weather_current` |
+| `extract_transform_load_hourly` | Extrae datos horarios de Open-Meteo → `bronze_weather_hourly` |
+| `dbt_deps` | Instala dependencias del proyecto dbt |
+| `dbt_run_silver` | Transforma Bronze → Silver (limpieza, tipado, deduplicación) |
+| `dbt_test_silver` | Valida calidad de datos en Silver |
+| `dbt_run_gold` | Agrega Silver → Gold (ventanas de tiempo, features para el motor) |
+| `dbt_test_gold` | Valida calidad de datos en Gold |
+| `run_risk_engine` | Ejecuta el motor difuso y guarda el resultado en `alerts` |
 
-**Etapa 2 - Score de riesgo (0 a 100):**
-- Entradas: `nivel_lluvia` + humedad promedio ultimas 6h
-- Salida: `riesgo_score` y `nivel_riesgo`
+### Capas de datos en PostgreSQL
 
-| Rango score | Nivel |
-|-------------|-------|
-| 0 - 24 | VERDE |
-| 25 - 49 | AMARILLO |
-| 50 - 74 | NARANJA |
-| 75 - 100 | ROJO |
+| Tabla | Capa | Descripción |
+|---|---|---|
+| `bronze_weather_current` | Bronze | Snapshots del clima actual, uno cada 15 min |
+| `bronze_weather_hourly` | Bronze | Datos horarios crudos con upsert por hora |
+| `silver_weather_current` | Silver | Datos actuales limpios y tipados |
+| `silver_weather_hourly` | Silver | Datos horarios limpios y deduplicados |
+| `gold_risk_features_latest` | Gold | Features agregadas para el motor (1 fila) |
+| `gold_precipitation_history` | Gold | Histórico horario de precipitación |
+| `gold_daily_summary` | Gold | Resumen diario de precipitación |
+| `alerts` | Resultado | Historial de evaluaciones del motor difuso |
+
+![alt text](<Pipelina airflow.png>)
 
 ---
 
-### 3. Backend API (FastAPI)
+## Motor de Riesgo — Lógica Difusa
 
-Ubicado en `backend/`. Puerto: **8000**.
+Ubicado en `airflow/plugins/risk_engine/`, el motor opera en **dos etapas** usando `scikit-fuzzy`.
 
-Arquitectura por capas: `controllers` -> `services` -> `repositories`.
+### ¿Por qué lógica difusa y no ML?
 
-| Endpoint | Descripcion |
-|----------|-------------|
-| `GET http://localhost:8000/api/risk/current` | Ultimo resultado del motor de riesgo |
-| `GET http://localhost:8000/api/risk/history` | Historial completo de evaluaciones |
-| `GET http://localhost:8000/api/precipitation/current` | Niveles de lluvia de la ultima revision |
-| `GET http://localhost:8000/api/precipitation/history` | Historico horario de precipitacion |
+La lógica difusa permite modelar el conocimiento experto de forma explícita y transparente, sin necesidad de datos de entrenamiento etiquetados. Las reglas son interpretables: "si la precipitación de la última hora es alta Y la humedad es elevada, el riesgo es naranja". Esto es ideal para un dominio donde la causalidad es conocida pero los umbrales son graduales.
 
-**Ejemplo - `/api/risk/current`:**
+### Etapa 1 — Nivel de Lluvia (0 a 1)
+
+**Entradas:**
+- `precip_1h` — precipitación última hora (mm)
+- `precip_3h` — precipitación últimas 3 horas (mm)
+- `intensidad_actual` — intensidad de lluvia actual (mm/h)
+
+**Salida:** `nivel_lluvia` entre 0 y 1, clasificado en: *bajo, medio, alto*
+
+### Etapa 2 — Score de Riesgo (0 a 100)
+
+**Entradas:**
+- `nivel_lluvia` — resultado de la etapa 1
+- `humidity_avg_6h` — humedad promedio últimas 6 horas (%)
+
+**Salida:** `riesgo_score` y `nivel_riesgo`
+
+| Score | Nivel |
+|---|---|
+| 0 – 25 | 🟢 VERDE |
+| 25 – 50 | 🟡 AMARILLO |
+| 50 – 75 | 🟠 NARANJA |
+| 75 – 100 | 🔴 ROJO |
+
+---
+
+## Backend — FastAPI
+
+API REST construida con **FastAPI** y **SQLAlchemy**, siguiendo arquitectura en capas: `Controller → Service → Repository`.
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /api/risk/current` | Último nivel de riesgo calculado |
+| `GET /api/risk/history` | Historial de evaluaciones |
+| `GET /api/precipitation/current` | Precipitación y humedad actuales |
+| `GET /api/precipitation/history` | Histórico horario de precipitación |
+
+**Ejemplo — `/api/risk/current`:**
 ```json
 {
-  "nivel_riesgo": "AMARILLO",
-  "riesgo_score": 35.4,
-  "nivel_lluvia": 0.42,
-  "evaluated_at": "2026-04-27T21:00:00+00:00"
+  "nivel_riesgo": "NARANJA",
+  "riesgo_score": 61.4,
+  "nivel_lluvia": 0.73,
+  "evaluated_at": "2026-05-22T19:56:46+00:00"
 }
 ```
 
-**Ejemplo - `/api/precipitation/current`:**
+**Ejemplo — `/api/precipitation/current`:**
 ```json
 {
-  "precipitation_1h": 2.5,
-  "precipitation_3h": 6.1,
-  "precipitation_6h": 9.3,
-  "humidity_avg_6h": 78.4,
+  "precipitation_1h": 18.0,
+  "precipitation_3h": 35.0,
+  "humidity_avg_6h": 85.0,
   "trend_1h": "subiendo",
-  "as_of_time": "2026-04-27T21:00:00+00:00"
+  "as_of_time": "2026-05-22T19:56:46+00:00"
 }
 ```
 
+![alt text](<docs back.png>)
+
 ---
 
-## Requisitos para correr el proyecto
+## Frontend — React
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalar
+Dashboard web construido con **React** que muestra:
+
+- Nivel de riesgo actual con indicador visual por color
+- Score numérico del riesgo
+- Precipitación acumulada por ventanas de tiempo
+- Gráfico histórico del riesgo score
+
+![alt text](<Front precipitación.png>)
+
+![alt text](<Front riesgo.png>)
+
+---
+
+## Stack Tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Orquestación | Apache Airflow 2.9 |
+| Base de datos | PostgreSQL 15 |
+| Transformación | dbt-core |
+| Motor de riesgo | scikit-fuzzy, Python |
+| Backend | FastAPI, SQLAlchemy |
+| Frontend | React, Recharts |
+| Contenedores | Docker, Docker Compose |
+| Fuente de datos | Open-Meteo API |
+
+---
+
+## Cómo correr el proyecto
+
+### Requisitos
+- Docker Desktop
 - Git
-- Archivo `.env` en la raiz (ver `.env.example`)
 
----
-
-## Como correr el proyecto
+### Pasos
 
 **1. Clonar el repositorio**
 ```bash
-git clone https://github.com/jeriveraa23/Alerto.git
-cd Alerto
-git checkout develop
+git clone https://github.com/jeriveraa23/rain-risk-engine.git
+cd rain-risk-engine
 ```
 
 **2. Crear el archivo `.env`**
 ```bash
 cp .env.example .env
 ```
-Abre `.env` y completa las variables con los valores del equipo.
+Abre `.env` y completa las variables con los valores.
 
 **3. Levantar los contenedores**
 ```bash
-docker-compose up -d --build
+docker-compose up --build
 ```
 
-**4. Verificar que todo esta corriendo**
-```bash
-docker-compose ps
-```
-
-**5. Acceder a los servicios**
+**4. Acceder a los servicios**
 
 | Servicio | URL |
-|----------|-----|
-| Airflow UI | http://localhost:8080 |
-| Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
+|---|---|
 | Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000/docs |
+| Airflow UI | http://localhost:8080 |
 
-**6. Activar el DAG en Airflow**
+**5. Activar el DAG**
 
-Entra a `http://localhost:8080`, busca el DAG `weather_pipeline` y activalo.
-El pipeline correra automaticamente cada 15 minutos.
-El usuario es admin y la clave es admin
+Entra a `http://localhost:8080` con usuario `admin` y contraseña `admin`, busca el DAG `weather_pipeline` y actívalo. El pipeline correrá automáticamente cada 15 minutos.
 
-**7. Detener los contenedores**
+**6. Detener los contenedores**
 ```bash
 docker-compose down
 ```
@@ -173,5 +222,5 @@ docker-compose down
 **Reinicio total (borra todos los datos):**
 ```bash
 docker-compose down -v
-docker-compose up -d --build
+docker-compose up --build
 ```
