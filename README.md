@@ -18,8 +18,6 @@ Rain Risk Engine extrae datos de precipitación y humedad cada 15 minutos desde 
 
 El resultado se expone mediante una API REST y se visualiza en un dashboard web en tiempo real.
 
-> 📸 **Imagen sugerida:** captura del dashboard mostrando el nivel de riesgo en NARANJA o ROJO para evidenciar el color y los datos en pantalla.
-
 ---
 
 ## Arquitectura
