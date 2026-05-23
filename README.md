@@ -1,6 +1,6 @@
 # Rain Risk Engine
 
-Sistema de monitoreo y alerta temprana de riesgo por precipitaciones, construido sobre un pipeline ELT automatizado y un motor de lógica difusa para la evaluación del riesgo en tiempo real.
+Sistema de monitoreo y alerta de riesgo por precipitaciones, construido sobre un pipeline ELT automatizado y un motor de lógica difusa para la evaluación del riesgo en tiempo casi real.
 
 ---
 
